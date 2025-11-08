@@ -11,7 +11,7 @@ import {
     onAuthStateChanged,
     signOut
 } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js';
-import { getFirestore, doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js';
+import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js';
 import { firebaseConfig } from './firebase-config.js';
 
 // Initialize Firebase
@@ -22,6 +22,7 @@ const db = getFirestore(app);
 // DOM Elements
 const authContainer = document.getElementById('auth-container');
 const loggedInContainer = document.getElementById('logged-in-container');
+const usernameContainer = document.getElementById('username-container');
 const userEmailSpan = document.getElementById('user-email');
 const logoutButton = document.getElementById('logout-button');
 
@@ -36,12 +37,15 @@ const h1 = document.querySelector('h1');
 const passwordVisibilityToggle = document.querySelector('.password-wrapper .material-symbols-outlined');
 const googleSignInButton = document.getElementById('google-signin');
 const githubSignInButton = document.getElementById('github-signin');
+const usernameForm = document.getElementById('username-form');
+const usernameInput = document.getElementById('username');
 
 let isSignUp = false;
 
 // --- UI UPDATE FUNCTIONS ---
 function showLoggedInUI(user) {
     authContainer.style.display = 'none';
+    usernameContainer.style.display = 'none';
     loggedInContainer.style.display = 'block';
     userEmailSpan.textContent = user.email;
 }
@@ -49,6 +53,13 @@ function showLoggedInUI(user) {
 function showLoginUI() {
     authContainer.style.display = 'block';
     loggedInContainer.style.display = 'none';
+    usernameContainer.style.display = 'none';
+}
+
+function showUsernameSelectionUI() {
+    authContainer.style.display = 'none';
+    loggedInContainer.style.display = 'none';
+    usernameContainer.style.display = 'block';
 }
 
 // --- FUNCTIONS ---
@@ -77,11 +88,7 @@ async function handleSocialSignIn(provider) {
                 email: user.email,
                 createdAt: new Date()
             });
-            console.log('New user signed in via popup and data stored!');
-        } else {
-            console.log('Existing user signed in via popup.');
         }
-        showLoggedInUI(user); // Manually update UI
 
     } catch (error) {
         console.error("Social sign-in error:", error.code, error.message);
@@ -95,10 +102,53 @@ async function handleSocialSignIn(provider) {
     }
 }
 
-// --- AUTH STATE OBSERVER ---
-onAuthStateChanged(auth, (user) => {
-    if (user) {
+async function handleUsernameSubmit(e) {
+    e.preventDefault();
+    const username = usernameInput.value.trim();
+    const user = auth.currentUser;
+
+    if (!user) return;
+
+    if (username.length < 3) {
+        alert("Username must be at least 3 characters long.");
+        return;
+    }
+
+    try {
+        // Check for uniqueness
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where("username", "==", username));
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+            alert("This username is already taken. Please choose another one.");
+            return;
+        }
+
+        // Save the username
+        const userDocRef = doc(db, 'users', user.uid);
+        await updateDoc(userDocRef, { username: username });
+
         showLoggedInUI(user);
+
+    } catch (error) {
+        console.error("Error saving username:", error);
+        alert("Error saving username. Please try again.");
+    }
+}
+
+
+// --- AUTH STATE OBSERVER ---
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        const userDocRef = doc(db, "users", user.uid);
+        const userDoc = await getDoc(userDocRef);
+
+        if (userDoc.exists() && userDoc.data().username) {
+            showLoggedInUI(user);
+        } else {
+            showUsernameSelectionUI();
+        }
     } else {
         showLoginUI();
     }
@@ -148,10 +198,6 @@ authForm.addEventListener('submit', (e) => {
             });
     } else {
         signInWithEmailAndPassword(auth, email, password)
-            .then((userCredential) => {
-                console.log('Logged in successfully!');
-                showLoggedInUI(userCredential.user);
-            })
             .catch((error) => {
                 console.error('Login error:', error.code, error.message);
                 if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
@@ -162,6 +208,8 @@ authForm.addEventListener('submit', (e) => {
             });
     }
 });
+
+usernameForm.addEventListener('submit', handleUsernameSubmit);
 
 passwordVisibilityToggle.addEventListener('click', () => {
     if (passwordInput.type === 'password') {
