@@ -16,7 +16,7 @@ body {
     background-size: 60px 60px;
 }
 
-#auth-container {
+#auth-container, #username-container {
     width: 100%;
     max-width: 440px; /* Increased from 400px */
     padding: 0 2rem;
@@ -39,7 +39,7 @@ label {
     margin-bottom: 0.5rem;
 }
 
-#name-container, #email-container {
+#name-container, #email-container, #username-form label {
     margin-bottom: 1.2rem; 
 }
 
@@ -52,6 +52,10 @@ input[type="text"], input[type="password"], input[type="email"] {
     border-radius: 8px;
     font-size: 0.9rem;
     box-sizing: border-box;
+}
+
+#username-form input {
+    margin-bottom: 1.5rem;
 }
 
 .password-wrapper {
@@ -226,7 +230,7 @@ button[type="submit"]:hover {
     body {
         padding: 2rem 0;
     }
-    #auth-container {
+    #auth-container, #username-container {
         padding: 0 1rem;
     }
     h1 {
